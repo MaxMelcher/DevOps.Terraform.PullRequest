@@ -1,9 +1,9 @@
-FROM microsoft/dotnet:2.1-aspnetcore-runtime AS base
+FROM microsoft/dotnet:2.1-runtime-deps-stretch-slim AS base
 WORKDIR /app
-EXPOSE 80
-EXPOSE 443
+EXPOSE 56926
+EXPOSE 44377
 
-FROM microsoft/dotnet:2.1-sdk AS build
+FROM microsoft/dotnet:2.1-runtime-deps-alpine3.7 AS build
 WORKDIR /src
 COPY ["DevOps.Terraform.PullRequest/DevOps.Terraform.PullRequest.csproj", "DevOps.Terraform.PullRequest/"]
 RUN dotnet restore "DevOps.Terraform.PullRequest/DevOps.Terraform.PullRequest.csproj"
