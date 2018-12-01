@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using DevOps.Terraform.PullRequest.Models;
 using LibGit2Sharp;
@@ -53,23 +55,38 @@ namespace DevOps.Terraform.PullRequest
             //POST https://dev.azure.com/{organization}/{project}/_apis/git/repositories/{repositoryId}/pullRequests/{pullRequestId}/statuses?api-version=4.1-preview.1
             var client = new HttpClient();
 
-            var organization = "mmelcher";
-            var project = content.Resource.Repository.Project.Name;
-            var repositoryId = content.Resource.Repository.Id;
             var pullRequestId = content.Resource.PullRequestId;
 
             var body = new
             {
                 context = new
                 {
-                    genre = "",
-                    name = "pending",
+                    name = "Terraform-PR",
                 },
                 state = "pending"
             };
 
-            var response = await client.PostAsync($"https://dev.azure.com/{organization}/{project}/_apis/git/repositories/{repositoryId}/pullRequests/{pullRequestId}/statuses?api-version=4.1-preview.1", new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json"));
-            Console.WriteLine($"{response.StatusCode} - {response.Content}");
+            //token that has only status permissions
+            var personalaccesstoken = "ejyfdwegf6hpxlthjflgrtg2fokvq3qf3kvreasdc4c7ir7trlia";
+
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes($":{personalaccesstoken}")));
+
+            var response = await client.PostAsync($"{content.Resource.Repository.Url}/pullRequests/{pullRequestId}/statuses?api-version=4.1-preview.1", new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json"));
+            Console.WriteLine($"{response.StatusCode}");
+
+            Thread.Sleep(10000);
+
+            body = new
+            {
+                context = new
+                {
+                    name = "Terraform-PR",
+                },
+                state = "succeeded"
+            };
+
+            var response2 = await client.PostAsync($"{content.Resource.Repository.Url}/pullRequests/{pullRequestId}/statuses?api-version=4.1-preview.1", new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json"));
+            Console.WriteLine($"{response2.StatusCode}");
         }
 
         private void Checkout()
@@ -80,7 +97,7 @@ namespace DevOps.Terraform.PullRequest
             {
                 if (repo.Network.Remotes.All(x => x.Name != "origin"))
                 {
-                    repo.Network.Remotes.Add("origin", "https://mmelcher@dev.azure.com/mmelcher/DevOps.Terraform.PullRequest/_git/DevOps.Terraform.PullRequest"); 
+                    repo.Network.Remotes.Add("origin", "https://mmelcher@dev.azure.com/mmelcher/DevOps.Terraform.PullRequest/_git/DevOps.Terraform.PullRequest");
                 }
 
                 var remote = repo.Network.Remotes["origin"];
