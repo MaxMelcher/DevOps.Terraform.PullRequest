@@ -15,7 +15,7 @@ namespace DevOps.Terraform.PullRequest
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMvcCore();
+            services.AddMvc();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -27,6 +27,9 @@ namespace DevOps.Terraform.PullRequest
             }
 
             app.UseMvc(routes => { routes.MapRoute(name: "status", template: "api/{controller=Status}"); });
+            app.Run(a => { Console.WriteLine("launced");
+                return null; 
+            });
         }
     }
 }
