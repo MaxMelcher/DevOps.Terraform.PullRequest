@@ -3,6 +3,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using DevOps.Terraform.PullRequest.Helpers;
@@ -98,12 +99,16 @@ namespace DevOps.Terraform.PullRequest
                 return init;
             }
 
-            var plan = $"/usr/bin/terraform plan {repository}".Bash();
-            byte[] utf8Bytes = Encoding.Default.GetBytes(plan.std);
-            var str = Encoding.UTF8.GetString(utf8Bytes);
 
-            Console.WriteLine($"Plan: {str}");
-            Console.WriteLine($"Plan Error: {plan.error}");
+            //get the plan without colors.
+            //todo Azure DevOps supports markdown and basic html so colored output could work. Ansi code must be parsed then.
+            var plan = $"/usr/bin/terraform plan {repository} -no-color".Bash();
+
+            //we need to escape the + or - or they will be indented by the markdown parser
+            plan.std = Regex.Replace(plan.std, "\\+", m => $"\\+");
+            plan.std = Regex.Replace(plan.std, "- ", m => $"\\- ");
+
+            Console.WriteLine($"Plan: {plan}");Console.WriteLine($"Plan Error: {plan.error}");
 
             return plan;
         }
