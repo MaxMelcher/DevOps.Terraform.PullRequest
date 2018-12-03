@@ -118,6 +118,11 @@ namespace DevOps.Terraform.PullRequest.Models
 
         [JsonProperty("url")]
         public Uri Url { get; set; }
+
+        public override string ToString()
+        {
+            return CommitId;
+        }
     }
 
     public partial class CreatedBy
