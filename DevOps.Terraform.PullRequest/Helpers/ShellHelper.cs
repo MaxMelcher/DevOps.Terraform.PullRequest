@@ -23,6 +23,7 @@ namespace DevOps.Terraform.PullRequest.Helpers
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true,
+                    WorkingDirectory = "/tmp",
                 }
             };
             process.Start();

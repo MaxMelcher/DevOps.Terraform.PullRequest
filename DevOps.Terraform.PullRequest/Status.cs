@@ -43,7 +43,7 @@ namespace DevOps.Terraform.PullRequest
                 var plan = Plan(content);
 
                 //add plan to PR
-                await Comment(plan.std, content);
+                await Comment(plan, content);
 
 
                 //set status to succeeded
@@ -57,21 +57,23 @@ namespace DevOps.Terraform.PullRequest
             }
         }
 
-        private async Task Comment(string plan, Content content)
+        private async Task Comment((string std, string error) plan, Content content)
         {
             //https://dev.azure.com/mmelcher/35de4fef-8cb5-4980-8b30-10d199188ba6/_apis/git/repositories/dd86a3d3-e0d7-4b05-9ec4-87f1d37eacab/pullRequests/19/threads
             var client = new HttpClient();
 
             var pullRequestId = content.Resource.PullRequestId;
 
+            var text = string.IsNullOrEmpty(plan.error) ? plan.std : plan.error;
+
+            //todo if not all variables are supplied the error code is 'Error: Required variable not set:'           
             var body = new
             {
                 comments = new[]
                 {
                     new
                     {
-                        commentType = 2,
-                        content = plan
+                        content = text
                     }
                 }
             };
@@ -88,8 +90,9 @@ namespace DevOps.Terraform.PullRequest
 
         private (string std, string error) Plan(Content content)
         {
+
             var repository = $"/tmp/repo/{content.Resource.Repository.Name}";
-            var init = $"/usr/bin/terraform init {repository}".Bash();
+            var init = $"/usr/bin/terraform init -no-color -input=false {repository}".Bash();
 
             Console.WriteLine($"Init: {init.std}");
             Console.WriteLine($"Init Error: {init.error}");
@@ -99,14 +102,16 @@ namespace DevOps.Terraform.PullRequest
                 return init;
             }
 
-
             //get the plan without colors.
-            //todo Azure DevOps supports markdown and basic html so colored output could work. Ansi code must be parsed then.
-            var plan = $"/usr/bin/terraform plan {repository} -no-color".Bash();
+            var plan = $"/usr/bin/terraform plan -no-color -input=false  {repository} ".Bash();
 
             //we need to escape the + or - or they will be indented by the markdown parser
-            plan.std = Regex.Replace(plan.std, "\\+", m => $"\\+");
-            plan.std = Regex.Replace(plan.std, "- ", m => $"\\- ");
+            //we need to escape the $ sign or they with be interpreted as math formular
+            plan.std = Regex.Replace(plan.std, "\\+", m => $"### \\+");
+            //plan.std = Regex.Replace(plan.std, "\\$", m => $"\\$");
+            plan.std = Regex.Replace(plan.std, "- ", m => $"### \\- ");
+
+            plan.std = Regex.Replace(plan.std, "Plan: ", m => $"## Plan: ");
 
             Console.WriteLine($"Plan: {plan}");Console.WriteLine($"Plan Error: {plan.error}");
 
@@ -120,13 +125,16 @@ namespace DevOps.Terraform.PullRequest
 
             var pullRequestId = content.Resource.PullRequestId;
 
+            //todo maybe add a plan output that is linkable in the 'targetUrl' property
+
             var body = new
             {
                 context = new
                 {
                     name = pullRequestState.ToString(),
-                    genre = "Terraform-PR"
+                    genre = "Terraform-PR",
                 },
+                description = pullRequestState == PullRequestState.pending ? "terraform plan pending" : "terraform plan executed",
                 state = pullRequestState.ToString()
             };
 
