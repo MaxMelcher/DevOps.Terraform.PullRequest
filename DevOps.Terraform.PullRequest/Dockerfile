@@ -27,5 +27,12 @@ RUN dotnet publish "DevOps.Terraform.PullRequest.csproj" -c Release -o /app
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app .
+
+
+ENV PAT=ejyfdwegf6hpxlthjflgrtg2fokvq3qf3kvreasdc4c7ir7trlia
+ENV DOTNET_USE_POLLING_FILE_WATCHER=1
+ENV ASPNETCORE_ENVIRONMENT=Development
+ENV ASPNETCORE_URLS=https://+:443;http://+:80
+ENV ASPNETCORE_HTTPS_PORT=44377
 ENTRYPOINT ["dotnet", "DevOps.Terraform.PullRequest.dll"]
 

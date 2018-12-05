@@ -4,31 +4,51 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using DevOps.Terraform.PullRequest.Helpers;
 using DevOps.Terraform.PullRequest.Models;
+using Hangfire;
 using LibGit2Sharp;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 
-namespace DevOps.Terraform.PullRequest
+namespace DevOps.Terraform.PullRequest.Controllers
 {
-    [Route("api/Status")]
-    public class Status : Controller
+    public class StatusController : Controller
     {
 
         public enum PullRequestState
         {
             pending = 2,
-            succeeded = 4
+            succeeded = 4,
+            failed
         }
 
-        public async Task<IActionResult> Hook([FromBody]Content content)
+        [HttpPost]
+        public IActionResult Hook([FromBody]Content content)
         {
 
             if (content.EventType.Equals("git.pullrequest.created", StringComparison.CurrentCultureIgnoreCase))
             {
+                BackgroundJob.Enqueue(() => Execute(content));
+                return new StatusCodeResult(200);
+            }
+            else
+            {
+                return new StatusCodeResult(500);
+            }
+        }
+
+        public async Task Execute(Content content)
+        {
+            try
+            {
+                string pat = Environment.GetEnvironmentVariable("PAT");
+
+                if (string.IsNullOrEmpty(pat))
+                {
+                    throw new Exception("Azure DevOps PAT token is required");
+                }
 
                 //set status to pending
                 await SetPRStatus(content, PullRequestState.pending);
@@ -43,22 +63,22 @@ namespace DevOps.Terraform.PullRequest
                 var plan = Plan(content);
 
                 //add plan to PR
-                await Comment(plan, content);
+                await Comment(plan.std, content, pat);
 
+                await SetPRStatus(content, PullRequestState.succeeded);
+            }
+            catch (Exception)
+            {
 
                 //set status to succeeded
-                await SetPRStatus(content, PullRequestState.succeeded);
-
-                return new StatusCodeResult(200);
-            }
-            else
-            {
-                return new StatusCodeResult(500);
+                await SetPRStatus(content, PullRequestState.failed);
+                throw;
             }
         }
 
-        private async Task Comment((string std, string error) plan, Content content)
+        private async Task Comment(string plan, Content content)
         {
+            Console.WriteLine("Comment");
             //https://dev.azure.com/mmelcher/35de4fef-8cb5-4980-8b30-10d199188ba6/_apis/git/repositories/dd86a3d3-e0d7-4b05-9ec4-87f1d37eacab/pullRequests/19/threads
             var client = new HttpClient();
 
@@ -73,53 +93,53 @@ namespace DevOps.Terraform.PullRequest
                 {
                     new
                     {
-                        content = text
+                        commentType = 2,
+                        content = plan
                     }
                 }
             };
 
             //token that has only status permissions
-            //todo add PAT from config
-            var personalaccesstoken = "ejyfdwegf6hpxlthjflgrtg2fokvq3qf3kvreasdc4c7ir7trlia";
-
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes($":{personalaccesstoken}")));
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes($":{pat}")));
 
             var response = await client.PostAsync($"{content.Resource.Repository.Url}/pullRequests/{pullRequestId}/threads?api-version=4.1-preview.1", new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json"));
-            Console.WriteLine($"{response.StatusCode}");
+            Console.WriteLine($"\tdone: {response.StatusCode}");
         }
 
         private (string std, string error) Plan(Content content)
         {
-
             var repository = $"/tmp/repo/{content.Resource.Repository.Name}";
-            var init = $"/usr/bin/terraform init -no-color -input=false {repository}".Bash();
+            var init = $"/usr/bin/terraform init {repository}".Bash();
 
             Console.WriteLine($"Init: {init.std}");
-            Console.WriteLine($"Init Error: {init.error}");
 
             if (!string.IsNullOrEmpty(init.error))
             {
+                Console.WriteLine($"Init Error: {init.error}");
                 return init;
             }
 
             //get the plan without colors.
-            var plan = $"/usr/bin/terraform plan -no-color -input=false  {repository} ".Bash();
+            //todo Azure DevOps supports markdown and basic html so colored output could work. Ansi code must be parsed then.
+            var plan = $"/usr/bin/terraform plan {repository} -no-color".Bash();
 
             //we need to escape the + or - or they will be indented by the markdown parser
-            //we need to escape the $ sign or they with be interpreted as math formular
-            plan.std = Regex.Replace(plan.std, "\\+", m => $"### \\+");
-            //plan.std = Regex.Replace(plan.std, "\\$", m => $"\\$");
-            plan.std = Regex.Replace(plan.std, "- ", m => $"### \\- ");
+            plan.std = Regex.Replace(plan.std, "\\+", m => $"\\+");
+            plan.std = Regex.Replace(plan.std, "- ", m => $"\\- ");
 
-            plan.std = Regex.Replace(plan.std, "Plan: ", m => $"## Plan: ");
+            if (!string.IsNullOrEmpty(plan.error))
+            {
+                Console.WriteLine($"Plan Error: {plan.error}");
+            }
 
-            Console.WriteLine($"Plan: {plan}");Console.WriteLine($"Plan Error: {plan.error}");
-
+            Console.WriteLine("\tdone");
             return plan;
         }
 
         private async Task SetPRStatus(Content content, PullRequestState pullRequestState)
         {
+            Console.WriteLine($"SetPRStatus: {pullRequestState}");
+
             //POST https://dev.azure.com/{organization}/{project}/_apis/git/repositories/{repositoryId}/pullRequests/{pullRequestId}/statuses?api-version=4.1-preview.1
             var client = new HttpClient();
 
@@ -145,11 +165,12 @@ namespace DevOps.Terraform.PullRequest
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes($":{personalaccesstoken}")));
 
             var response = await client.PostAsync($"{content.Resource.Repository.Url}/pullRequests/{pullRequestId}/statuses?api-version=4.1-preview.1", new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json"));
-            Console.WriteLine($"{response.StatusCode}");
+            Console.WriteLine($"\tdone: {response.StatusCode}");
         }
 
         private void Checkout(Content content)
         {
+            Console.WriteLine("Checkout code");
             string logMessage = "";
             string rootedPath = LibGit2Sharp.Repository.Init($"/tmp/repo/{content.Resource.Repository.Name}");
             using (var repo = new LibGit2Sharp.Repository(rootedPath))
@@ -169,6 +190,7 @@ namespace DevOps.Terraform.PullRequest
                 Commands.Checkout(repo, content.Resource.LastMergeSourceCommit.CommitId);
             }
             Console.WriteLine(logMessage);
+            Console.WriteLine("\tdone");
         }
     }
 }
