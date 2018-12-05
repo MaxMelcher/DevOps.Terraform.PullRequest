@@ -4,7 +4,6 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using DevOps.Terraform.PullRequest.Helpers;
 using DevOps.Terraform.PullRequest.Models;
@@ -12,18 +11,18 @@ using LibGit2Sharp;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 
-namespace DevOps.Terraform.PullRequest
+namespace DevOps.Terraform.PullRequest.Controllers
 {
-    [Route("api/Status")]
-    public class Status : Controller
+    public class StatusController : Controller
     {
 
         public enum PullRequestState
         {
-            pending = 2,
-            succeeded = 4
+            Pending = 2,
+            Succeeded = 4
         }
 
+        [HttpPost]
         public async Task<IActionResult> Hook([FromBody]Content content)
         {
 
@@ -31,7 +30,7 @@ namespace DevOps.Terraform.PullRequest
             {
 
                 //set status to pending
-                await SetPRStatus(content, PullRequestState.pending);
+                await SetPRStatus(content, PullRequestState.Pending);
 
                 //pull code
                 Checkout(content);
@@ -47,7 +46,7 @@ namespace DevOps.Terraform.PullRequest
 
 
                 //set status to succeeded
-                await SetPRStatus(content, PullRequestState.succeeded);
+                await SetPRStatus(content, PullRequestState.Succeeded);
 
                 return new StatusCodeResult(200);
             }
