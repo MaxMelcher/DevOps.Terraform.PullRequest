@@ -21,7 +21,7 @@ namespace DevOps.Terraform.PullRequest.Controllers
         {
             pending = 2,
             succeeded = 4,
-            failed
+            failed = 8
         }
 
         [HttpPost]
@@ -63,7 +63,7 @@ namespace DevOps.Terraform.PullRequest.Controllers
                 var plan = Plan(content);
 
                 //add plan to PR
-                await Comment(plan.std, content, pat);
+                await Comment(plan, content, pat);
 
                 await SetPRStatus(content, PullRequestState.succeeded);
             }
@@ -76,7 +76,7 @@ namespace DevOps.Terraform.PullRequest.Controllers
             }
         }
 
-        private async Task Comment(string plan, Content content)
+        private async Task Comment((string std, string error) plan, Content content, string pat)
         {
             Console.WriteLine("Comment");
             //https://dev.azure.com/mmelcher/35de4fef-8cb5-4980-8b30-10d199188ba6/_apis/git/repositories/dd86a3d3-e0d7-4b05-9ec4-87f1d37eacab/pullRequests/19/threads
