@@ -26,7 +26,10 @@
     "Docker": {
       "commandName": "Docker",
       "launchBrowser": false,
-      "launchUrl": "{Scheme}://localhost:{ServicePort}"
+      "launchUrl": "{Scheme}://localhost:{ServicePort}",
+      "environmentVariables": {
+        "PAT": "ejyfdwegf6hpxlthjflgrtg2fokvq3qf3kvreasdc4c7ir7trlia"
+      }
     }
   }
 }

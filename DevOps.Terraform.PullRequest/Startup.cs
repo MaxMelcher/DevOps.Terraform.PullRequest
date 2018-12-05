@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Hangfire;
+using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -31,7 +33,7 @@ namespace DevOps.Terraform.PullRequest
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
 
-
+            services.AddHangfire(h => h.UseMemoryStorage());
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
 
@@ -51,7 +53,7 @@ namespace DevOps.Terraform.PullRequest
             //app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseCookiePolicy();
-
+            app.UseHangfireServer();
             app.UseMvc(routes =>
             {
                 routes.MapRoute(
