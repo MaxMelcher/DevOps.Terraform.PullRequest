@@ -4,7 +4,7 @@
     "anonymousAuthentication": true,
     "iisExpress": {
       "applicationUrl": "http://localhost:56926",
-      "sslPort": 44377
+      "sslPort": 0
     }
   },
   "profiles": {
@@ -12,7 +12,7 @@
       "commandName": "IISExpress",
       "launchBrowser": true,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
       }
     },
     "DevOps.Terraform.PullRequest": {
@@ -28,7 +28,6 @@
       "launchBrowser": false,
       "launchUrl": "{Scheme}://localhost:{ServicePort}",
       "environmentVariables": {
-        "PAT": "ejyfdwegf6hpxlthjflgrtg2fokvq3qf3kvreasdc4c7ir7trlia"
       }
     }
   }

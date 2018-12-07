@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
@@ -14,6 +15,9 @@ namespace DevOps.Terraform.PullRequest
     {
         public static void Main(string[] args)
         {
+            var pat = Environment.GetEnvironmentVariable("PAT");
+            Console.WriteLine($"PAT: {pat}");
+
             CreateWebHostBuilder(args).Build().Run();
         }
 
