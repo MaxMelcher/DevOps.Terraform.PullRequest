@@ -1,0 +1,3 @@
+docker build -t d .
+docker create --name dev --rm -e "PAT=ejyfdwegf6hpxlthjflgrtg2fokvq3qf3kvreasdc4c7ir7trlia" -e "ASPNETCORE_ENVIRONMENT=Development" -e "ASPNETCORE_URLS=http://+:80" -p 56926:80 d:latest
+docker run -i dev
