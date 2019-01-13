@@ -18,6 +18,11 @@ namespace DevOps.Terraform.PullRequest
             var pat = Environment.GetEnvironmentVariable("PAT");
             Console.WriteLine($"PAT: {pat}");
 
+            if (string.IsNullOrEmpty(pat))
+            {
+                throw new Exception("Environment Variable 'PAT' is required");
+            }
+
             CreateWebHostBuilder(args).Build().Run();
         }
 
